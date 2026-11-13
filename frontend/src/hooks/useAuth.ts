@@ -1,0 +1,14 @@
+/**
+ * Custom hook to consume the AuthContext — throws if used outside AuthProvider.
+ */
+
+import { useContext } from "react";
+import { AuthContext, type AuthContextValue } from "@/contexts/AuthContext";
+
+export function useAuth(): AuthContextValue {
+  const ctx = useContext(AuthContext);
+  if (ctx === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return ctx;
+}
