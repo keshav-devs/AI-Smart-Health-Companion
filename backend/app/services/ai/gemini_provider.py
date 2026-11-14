@@ -115,14 +115,21 @@ class GeminiAIProvider(AIExplanationProvider):
             from google.genai import types
 
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=EXPLANATION_SYSTEM_INSTRUCTION,
-                    response_mime_type="application/json",
-                ),
-            )
+            async_client = client.aio
+            try:
+                response = await async_client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=EXPLANATION_SYSTEM_INSTRUCTION,
+                        response_mime_type="application/json",
+                    ),
+                )
+            finally:
+                try:
+                    await async_client.aclose()
+                finally:
+                    client.close()
 
             response_text = response.text or ""
             if not response_text.strip():
@@ -200,14 +207,21 @@ class GeminiAIProvider(AIExplanationProvider):
             from google.genai import types
 
             client = genai.Client(api_key=settings.GEMINI_API_KEY)
-            response = client.models.generate_content(
-                model=settings.GEMINI_MODEL,
-                contents=prompt,
-                config=types.GenerateContentConfig(
-                    system_instruction=QUESTION_SYSTEM_INSTRUCTION,
-                    response_mime_type="application/json",
-                ),
-            )
+            async_client = client.aio
+            try:
+                response = await async_client.models.generate_content(
+                    model=settings.GEMINI_MODEL,
+                    contents=prompt,
+                    config=types.GenerateContentConfig(
+                        system_instruction=QUESTION_SYSTEM_INSTRUCTION,
+                        response_mime_type="application/json",
+                    ),
+                )
+            finally:
+                try:
+                    await async_client.aclose()
+                finally:
+                    client.close()
 
             response_text = response.text or ""
             if not response_text.strip():

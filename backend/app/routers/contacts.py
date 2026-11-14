@@ -25,17 +25,21 @@ router = APIRouter(prefix="/contacts", tags=["contacts"])
 @router.post("", response_model=ContactResponse, status_code=status.HTTP_201_CREATED)
 async def create_contact(
     data: ContactCreate,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ContactResponse:
     from app.services.profiles import get_user_profile
-    profile = await get_user_profile(db, data.profile_id, current_user.id)
-    if not profile:
+    if data.profile_id != profile_id:
+        raise HTTPException(status_code=403, detail="Contact profile must match the active profile.")
+
+    profile = await get_user_profile(db, profile_id, current_user.id)
+    if not profile or not profile.is_active:
         raise HTTPException(status_code=403, detail="Profile access denied.")
 
     contact = Contact(
         user_id=current_user.id,
-        profile_id=data.profile_id,
+        profile_id=profile_id,
         contact_type=data.contact_type,
         name=data.name,
         phone=data.phone,
@@ -70,11 +74,16 @@ async def list_contacts(
 async def update_contact(
     contact_id: uuid.UUID,
     data: ContactUpdate,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ContactResponse:
     result = await db.execute(
-        select(Contact).where(Contact.id == contact_id, Contact.user_id == current_user.id)
+        select(Contact).where(
+            Contact.id == contact_id,
+            Contact.user_id == current_user.id,
+            Contact.profile_id == profile_id,
+        )
     )
     contact = result.scalar_one_or_none()
     if not contact:
@@ -92,11 +101,16 @@ async def update_contact(
 @router.delete("/{contact_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_contact(
     contact_id: uuid.UUID,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Contact).where(Contact.id == contact_id, Contact.user_id == current_user.id)
+        select(Contact).where(
+            Contact.id == contact_id,
+            Contact.user_id == current_user.id,
+            Contact.profile_id == profile_id,
+        )
     )
     contact = result.scalar_one_or_none()
     if not contact:

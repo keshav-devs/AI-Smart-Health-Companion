@@ -34,6 +34,9 @@ async def create_user_profile(db: AsyncSession, user_id: uuid.UUID, data: Profil
         user_id=user_id,
         name=data.name,
         relationship_type=data.relationship_type,
+        date_of_birth=data.date_of_birth,
+        blood_type=data.blood_type.strip() if data.blood_type else None,
+        allergies=data.allergies.strip() if data.allergies else None,
         is_default=False,
         is_active=True,
     )
@@ -55,6 +58,12 @@ async def update_user_profile(
         profile.name = data.name
     if data.relationship_type is not None:
         profile.relationship_type = data.relationship_type
+    if data.date_of_birth is not None:
+        profile.date_of_birth = data.date_of_birth
+    if data.blood_type is not None:
+        profile.blood_type = data.blood_type.strip() if data.blood_type else None
+    if data.allergies is not None:
+        profile.allergies = data.allergies.strip() if data.allergies else None
     
     if data.is_active is not None:
         if not data.is_active and profile.is_default:

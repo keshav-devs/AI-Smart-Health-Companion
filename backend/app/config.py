@@ -25,6 +25,9 @@ class Settings(BaseSettings):
     GEMINI_API_KEY: str | None = None
     GEMINI_MODEL: str = "gemini-2.5-flash"
 
+    # Geoapify Places
+    GEOAPIFY_API_KEY: str | None = None
+
     @property
     def cors_origins(self) -> list[str]:
         """Parse comma-separated CORS origins into a list."""

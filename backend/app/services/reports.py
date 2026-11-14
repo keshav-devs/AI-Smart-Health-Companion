@@ -187,10 +187,15 @@ async def get_user_report(
     db: AsyncSession,
     report_id: uuid.UUID,
     user_id: uuid.UUID,
+    profile_id: uuid.UUID,
 ) -> Report | None:
-    """Retrieve a specific report ensuring user ownership."""
+    """Retrieve a report only within the specified user's active profile."""
     result = await db.execute(
-        select(Report).where(Report.id == report_id, Report.user_id == user_id)
+        select(Report).where(
+            Report.id == report_id,
+            Report.user_id == user_id,
+            Report.profile_id == profile_id,
+        )
     )
     return result.scalar_one_or_none()
 
@@ -211,12 +216,13 @@ async def analyze_user_report(
     db: AsyncSession,
     report_id: uuid.UUID,
     user_id: uuid.UUID,
+    profile_id: uuid.UUID,
 ) -> Report:
     """Read the report file, invoke Gemini AI extraction, and store results.
 
     Verifies user ownership before accessing file or invoking AI.
     """
-    report = await get_user_report(db, report_id, user_id)
+    report = await get_user_report(db, report_id, user_id, profile_id)
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -297,6 +303,7 @@ async def confirm_user_report_extraction(
     db: AsyncSession,
     report_id: uuid.UUID,
     user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     data: Any,
 ) -> Report:
     """Explicitly confirm and save user-verified extracted lab data or manually entered data.
@@ -307,7 +314,7 @@ async def confirm_user_report_extraction(
     from app.schemas.report import ConfirmExtractionRequest, STANDARD_MEDICAL_DISCLAIMER
     from app.utils.lab_parser import compute_test_status
 
-    report = await get_user_report(db, report_id, user_id)
+    report = await get_user_report(db, report_id, user_id, profile_id)
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

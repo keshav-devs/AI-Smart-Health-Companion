@@ -30,7 +30,7 @@ async def create_journal_entry(
 ) -> JournalEntryResponse:
     from app.services.profiles import get_user_profile
     profile = await get_user_profile(db, data.profile_id, current_user.id)
-    if not profile:
+    if not profile or not profile.is_active:
         raise HTTPException(status_code=403, detail="Profile access denied.")
 
     entry = JournalEntry(

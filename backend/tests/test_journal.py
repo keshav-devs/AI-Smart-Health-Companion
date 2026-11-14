@@ -25,6 +25,7 @@ async def test_create_journal_entry(client: AsyncClient):
         headers={"Authorization": f"Bearer {token}"}
     )
     assert response.status_code == 201
+    
     data = response.json()
     assert data["mood"] == "Okay"
     assert data["sleep_hours"] == 7.5

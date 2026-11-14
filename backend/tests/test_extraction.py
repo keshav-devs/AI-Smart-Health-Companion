@@ -16,6 +16,7 @@ from app.services.gemini_extractor import (
     GeminiExtractionError,
     GeminiServiceError,
     interpret_range_comparison,
+    sanitize_extracted_data,
 )
 
 VALID_PDF_BYTES = b"%PDF-1.4\n1 0 obj\n<<>>\nendobj\ntrailer\n<<>>\n%%EOF"
@@ -86,6 +87,59 @@ def test_interpret_range_missing_or_qualitative():
     status2, needs_review2, reason2 = interpret_range_comparison("15", "Varies by lab protocol")
     assert status2 == "unspecified"
     assert needs_review2 is True
+
+
+@pytest.mark.parametrize(
+    ("reference_range", "value"),
+    [
+        (None, "18"),
+        ("", "18"),
+        ("unspecified", "18"),
+        ("Negative / trace", "18"),
+        ("Varies by laboratory", "18"),
+    ],
+)
+def test_sanitizer_never_trusts_ai_status_without_parseable_range(reference_range, value):
+    """Gemini's suggested high/low must never survive an absent or ambiguous range."""
+    result = sanitize_extracted_data({
+        "tests": [{
+            "test_name": "Example marker",
+            "value": value,
+            "reference_range": reference_range,
+            "status": "high",
+        }]
+    })
+    assert result.tests[0].status == "unspecified"
+    assert result.tests[0].needs_review is True
+
+
+def test_sanitizer_keeps_uncertain_value_unclassified():
+    result = sanitize_extracted_data({
+        "tests": [{
+            "test_name": "Hemoglobin",
+            "value": "17",
+            "reference_range": "12 - 16",
+            "status": "high",
+            "needs_review": True,
+            "review_reason": "Value is faint",
+        }]
+    })
+    assert result.tests[0].status == "unspecified"
+    assert result.tests[0].needs_review is True
+    assert result.tests[0].review_reason == "Value is faint"
+
+
+def test_sanitizer_uses_printed_numeric_range_over_ai_status():
+    result = sanitize_extracted_data({
+        "tests": [{
+            "test_name": "Hemoglobin",
+            "value": "17",
+            "reference_range": "12 - 16",
+            "status": "normal",
+        }]
+    })
+    assert result.tests[0].status == "high"
+    assert result.tests[0].needs_review is False
 
 
 # ── AI Extraction Integration Tests (Mocked AI Provider) ──────────────

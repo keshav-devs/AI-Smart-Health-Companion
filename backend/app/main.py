@@ -8,7 +8,22 @@ from fastapi.responses import JSONResponse
 
 from app.config import settings
 from app.database import Base, engine
-from app.routers import auth, health, medicines, reports, profiles, documents, journal, doctor_questions, contacts, notifications
+from app.routers import (
+    auth,
+    chat,
+    contacts,
+    doctor_questions,
+    documents,
+    emergency,
+    health,
+    hospitals,
+    journal,
+    medicines,
+    notifications,
+    profiles,
+    reports,
+    timeline,
+)
 
 
 @asynccontextmanager
@@ -49,6 +64,10 @@ app.include_router(journal.router, prefix="/api/v1")
 app.include_router(doctor_questions.router, prefix="/api/v1")
 app.include_router(contacts.router, prefix="/api/v1")
 app.include_router(notifications.router, prefix="/api/v1")
+app.include_router(chat.router, prefix="/api/v1")
+app.include_router(timeline.router, prefix="/api/v1")
+app.include_router(emergency.router, prefix="/api/v1")
+app.include_router(hospitals.router, prefix="/api/v1")
 
 # ── Global exception handler ─────────────────────────────────────────
 

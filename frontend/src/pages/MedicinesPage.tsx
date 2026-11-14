@@ -29,9 +29,12 @@ import type {
   TodayDoseItem,
 } from "@/schemas/medicine";
 import type { ApiError } from "@/api/client";
+import { useProfile } from "@/hooks/useProfile";
 
 export function MedicinesPage() {
   const queryClient = useQueryClient();
+  const { currentProfile } = useProfile();
+  const profileId = currentProfile?.id;
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [adherenceDays, setAdherenceDays] = useState(30);
 
@@ -42,8 +45,9 @@ export function MedicinesPage() {
     isError: isMedsError,
     error: medsError,
   } = useQuery({
-    queryKey: ["medicines"],
+    queryKey: ["medicines", profileId],
     queryFn: () => fetchMedicines(false),
+    enabled: !!profileId,
   });
 
   // 2. Fetch Today's Doses
@@ -52,24 +56,27 @@ export function MedicinesPage() {
     isLoading: isDosesLoading,
     refetch: refetchTodayDoses,
   } = useQuery({
-    queryKey: ["today-doses"],
+    queryKey: ["today-doses", profileId],
     queryFn: () => fetchTodayDoses(),
+    enabled: !!profileId,
   });
 
   // 3. Fetch Adherence Analytics
   const {
     data: adherenceData,
   } = useQuery({
-    queryKey: ["adherence", adherenceDays],
+    queryKey: ["adherence", profileId, adherenceDays],
     queryFn: () => fetchAdherenceHistory(adherenceDays),
+    enabled: !!profileId,
   });
 
   // 4. Fetch Refill / Expiry Alerts
   const {
     data: alertsData,
   } = useQuery({
-    queryKey: ["medicine-alerts"],
+    queryKey: ["medicine-alerts", profileId],
     queryFn: fetchMedicineAlerts,
+    enabled: !!profileId,
   });
 
   // 5. Fetch Reminder Provider Status

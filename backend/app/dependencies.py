@@ -59,7 +59,7 @@ async def get_active_profile_id(
     if profile_id:
         from app.services.profiles import get_user_profile
         profile = await get_user_profile(db, profile_id, current_user.id)
-        if not profile:
+        if not profile or not profile.is_active:
             raise HTTPException(
                 status_code=status.HTTP_403_FORBIDDEN,
                 detail="Profile access denied."
@@ -67,13 +67,14 @@ async def get_active_profile_id(
         return profile_id
         
     from app.services.profiles import list_user_profiles
-    profiles = await list_user_profiles(db, current_user.id)
+    profiles = await list_user_profiles(db, current_user.id, active_only=True)
     for p in profiles:
-        if p.is_default:
+        if p.is_default and p.is_active:
             return p.id
             
-    if profiles:
-        return profiles[0].id
+    for p in profiles:
+        if p.is_active:
+            return p.id
         
     raise HTTPException(
         status_code=status.HTTP_400_BAD_REQUEST,

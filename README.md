@@ -1,88 +1,80 @@
 # AI Smart Health Companion
 
-A modern, trustworthy health-management web application built with React, FastAPI, and PostgreSQL.
+A responsive health-record MVP for patients and families. It combines a React/TypeScript frontend with a FastAPI backend, profile-scoped records, and optional Gemini-powered report education. This is a project/demo MVP, not clinical software.
 
-## Architecture
+## Current MVP features
 
-| Layer      | Stack                                                       |
-| ---------- | ----------------------------------------------------------- |
-| Frontend   | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query    |
-| Backend    | Python 3.12, FastAPI, SQLAlchemy 2.0, Alembic, Pydantic v2  |
-| Database   | PostgreSQL 16                                               |
-| Infra      | Docker Compose                                              |
+- Account registration, login, and JWT-protected APIs.
+- Family profiles with switching, add/edit/deactivate, and separate records per profile.
+- Blood-report upload, preview/download, manual lab-value entry, review/confirmation, trends, and optional AI extraction/explanation/report questions.
+- Medicine records, schedules, dose logging, inventory deduction, and adherence summaries.
+- Health-document upload, download, and delete.
+- Lifestyle/symptom journal and doctor-preparation questions with create/edit/delete flows.
+- Profile-scoped emergency and care-team contacts.
+- Active-profile data export as JSON.
 
-## Quick Start
+## Technology
 
-### Prerequisites
+| Layer | Stack |
+| --- | --- |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS, TanStack Query |
+| Backend | Python, FastAPI, SQLAlchemy 2, Pydantic 2, Alembic |
+| Database | PostgreSQL 16 |
+| Development deployment | Docker Compose |
+| Optional AI | Google Gemini through the server-side Python SDK |
 
-- [Docker](https://docs.docker.com/get-docker/) and Docker Compose v2+
+## Start locally with Docker Desktop
 
-### 1. Configure environment
+1. In PowerShell, from the project root, copy the example environment file and edit the secrets:
 
-```bash
-cp .env.example .env
-# Edit .env — set POSTGRES_PASSWORD and SECRET_KEY to real values
+   ```powershell
+   Copy-Item .env.example .env
+   ```
+
+   Set a strong `POSTGRES_PASSWORD` and `SECRET_KEY`. `GEMINI_API_KEY` may be left blank; report extraction and AI explanations will then return an honest configuration error. Keep the Gemini key only in the backend environment.
+
+2. Start the app and database:
+
+   ```powershell
+   docker compose up --build -d
+   docker compose exec backend alembic upgrade head
+   ```
+
+3. Open:
+
+   - Frontend: http://localhost:5173
+   - API health: http://localhost:8000/api/v1/health
+   - API docs: http://localhost:8000/docs
+
+Register a new account in the app; no demo account is seeded.
+
+## Checks
+
+From `frontend/`:
+
+```powershell
+npm run typecheck
+npm run build
 ```
 
-### 2. Start all services
+From `backend/`:
 
-```bash
-make up
-# or: docker compose up --build -d
+```powershell
+.\.venv\Scripts\python.exe -m pytest tests -q
 ```
 
-### 3. Run database migrations
+`backend/test_live_e2e.py` is a separate live-server script. Start the backend first, then run it directly with Python; pytest discovery will not execute it. It creates a disposable account and records in the configured database.
 
-```bash
-make migrate
-# or: docker compose exec backend alembic upgrade head
+## Current integration limits
+
+- Without a valid Gemini key and available quota, AI report extraction and AI explanations cannot be demonstrated.
+- Scheduled SMS/WhatsApp delivery is not implemented; the app reports in-app dose tracking honestly and does not claim external messages were sent.
+- This MVP does not connect to a hospital/EHR, interpret reports as a diagnosis, or prescribe treatment.
+- Uploaded files use the configured local/container storage directory. A public deployment needs durable private object storage, backups, and production secrets.
+
+## Structure
+
+```text
+backend/   FastAPI routes, services, models, migrations, tests
+frontend/  React pages, API clients, profile/auth contexts
 ```
-
-### 4. Open the app
-
-- **Frontend**: [http://localhost:5173](http://localhost:5173)
-- **Backend API docs**: [http://localhost:8000/docs](http://localhost:8000/docs)
-- **Health check**: [http://localhost:8000/api/v1/health](http://localhost:8000/api/v1/health)
-
-## Makefile Commands
-
-| Command        | Description                          |
-| -------------- | ------------------------------------ |
-| `make up`      | Build and start all services         |
-| `make down`    | Stop and remove containers           |
-| `make logs`    | Tail logs from all services          |
-| `make migrate` | Run Alembic migrations               |
-| `make shell`   | Open a shell in the backend container|
-
-## Project Structure
-
-```
-├── backend/          # FastAPI application
-│   ├── app/          # Application code
-│   │   ├── models/   # SQLAlchemy models
-│   │   ├── schemas/  # Pydantic schemas
-│   │   ├── services/ # Business logic
-│   │   └── routers/  # API endpoints
-│   └── alembic/      # Database migrations
-├── frontend/         # React application
-│   └── src/
-│       ├── components/
-│       ├── pages/
-│       ├── contexts/
-│       └── api/
-└── docker-compose.yml
-```
-
-## Current Milestone
-
-**Milestone 1** — Project foundation with authentication:
-
-- ✅ User registration and login
-- ✅ JWT-based session management
-- ✅ Protected dashboard with empty states
-- ✅ Responsive design (desktop + mobile)
-- ✅ Docker Compose deployment
-
-## License
-
-Private — All rights reserved.

@@ -33,10 +33,13 @@ import type {
   ReportQuestionResponse,
 } from "@/schemas/explanation";
 import type { ApiError } from "@/api/client";
+import { useProfile } from "@/hooks/useProfile";
 
 export function ReportDetailPage() {
   const { reportId } = useParams<{ reportId: string }>();
   const queryClient = useQueryClient();
+  const { currentProfile } = useProfile();
+  const profileId = currentProfile?.id;
 
   const [isDownloading, setIsDownloading] = useState(false);
   const [downloadError, setDownloadError] = useState<string | null>(null);
@@ -58,9 +61,9 @@ export function ReportDetailPage() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["report", reportId],
+    queryKey: ["report", profileId, reportId],
     queryFn: () => fetchReportDetails(reportId!),
-    enabled: Boolean(reportId),
+    enabled: Boolean(profileId) && Boolean(reportId),
   });
 
   // Populate local edit state when extracted data arrives
@@ -82,9 +85,9 @@ export function ReportDetailPage() {
     error: fileError,
     refetch: refetchFile,
   } = useQuery({
-    queryKey: ["report-file", reportId],
+    queryKey: ["report-file", profileId, reportId],
     queryFn: () => fetchReportBlob(reportId!, "inline"),
-    enabled: Boolean(reportId) && Boolean(report),
+    enabled: Boolean(profileId) && Boolean(reportId) && Boolean(report),
   });
 
   // Create and clean up Object URL for the blob
@@ -105,7 +108,7 @@ export function ReportDetailPage() {
   const analyzeMutation = useMutation({
     mutationFn: () => analyzeReport(reportId!),
     onSuccess: (updatedReport) => {
-      queryClient.setQueryData(["report", reportId], updatedReport);
+      queryClient.setQueryData(["report", profileId, reportId], updatedReport);
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       setIsEditMode(false);
     },
@@ -116,7 +119,7 @@ export function ReportDetailPage() {
     mutationFn: (confirmData: ConfirmExtractionRequest) =>
       confirmExtraction(reportId!, confirmData),
     onSuccess: (updatedReport) => {
-      queryClient.setQueryData(["report", reportId], updatedReport);
+      queryClient.setQueryData(["report", profileId, reportId], updatedReport);
       queryClient.invalidateQueries({ queryKey: ["reports"] });
       setIsEditMode(false);
     },
@@ -137,7 +140,7 @@ export function ReportDetailPage() {
     mutationFn: () => explainReport(reportId!),
     onSuccess: (data) => {
       setLocalExplanation(data);
-      queryClient.invalidateQueries({ queryKey: ["report", reportId] });
+      queryClient.invalidateQueries({ queryKey: ["report", profileId, reportId] });
     },
   });
 

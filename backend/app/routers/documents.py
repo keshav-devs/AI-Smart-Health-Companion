@@ -20,6 +20,7 @@ from app.dependencies import get_current_user, get_active_profile_id
 from app.models.user import User
 from app.schemas.document import DocumentResponse
 from app.services.documents import (
+    delete_user_document,
     get_document_file_path,
     get_user_document,
     list_user_documents,
@@ -41,7 +42,7 @@ async def upload_document(
 ) -> DocumentResponse:
     from app.services.profiles import get_user_profile
     profile = await get_user_profile(db, profile_id, current_user.id)
-    if not profile:
+    if not profile or not profile.is_active:
         raise HTTPException(status_code=403, detail="Profile access denied.")
 
     document = await save_uploaded_document(
@@ -69,10 +70,11 @@ async def list_documents(
 @router.get("/{document_id}", response_model=DocumentResponse)
 async def get_document_details(
     document_id: uuid.UUID,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> DocumentResponse:
-    document = await get_user_document(db, document_id, current_user.id)
+    document = await get_user_document(db, document_id, current_user.id, profile_id)
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -81,15 +83,26 @@ async def get_document_details(
     return DocumentResponse.model_validate(document)
 
 
+@router.delete("/{document_id}", status_code=status.HTTP_204_NO_CONTENT)
+async def delete_document(
+    document_id: uuid.UUID,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    await delete_user_document(db, document_id, current_user.id, profile_id)
+
+
 @router.get("/{document_id}/file")
 @router.get("/{document_id}/download")
 async def get_document_file(
     document_id: uuid.UUID,
     disposition: str = "attachment",
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
-    document = await get_user_document(db, document_id, current_user.id)
+    document = await get_user_document(db, document_id, current_user.id, profile_id)
     if document is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

@@ -1,5 +1,6 @@
-import { createContext, useState, useEffect, ReactNode } from "react";
-import { Profile, listProfiles } from "@/api/profiles";
+import { createContext, useState, useEffect, type ReactNode } from "react";
+import { useQueryClient } from "@tanstack/react-query";
+import { type Profile, listProfiles } from "@/api/profiles";
 import { useAuth } from "@/hooks/useAuth";
 
 interface ProfileContextValue {
@@ -13,6 +14,7 @@ interface ProfileContextValue {
 export const ProfileContext = createContext<ProfileContextValue | undefined>(undefined);
 
 export function ProfileProvider({ children }: { children: ReactNode }) {
+  const queryClient = useQueryClient();
   const { user } = useAuth();
   const isAuthenticated = !!user;
   const [profiles, setProfiles] = useState<Profile[]>([]);
@@ -26,7 +28,7 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       setProfiles(data);
       
       const storedProfileId = localStorage.getItem("current_profile_id");
-      let selected = null;
+      let selected: Profile | null = null;
       if (storedProfileId) {
         selected = data.find(p => p.id === storedProfileId) || null;
       }
@@ -36,8 +38,15 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
       }
       
       if (selected) {
-        setCurrentProfileState(selected);
+        const changed = selected.id !== storedProfileId;
         localStorage.setItem("current_profile_id", selected.id);
+        setCurrentProfileState(selected);
+        if (changed) {
+          queryClient.invalidateQueries();
+        }
+      } else {
+        setCurrentProfileState(null);
+        localStorage.removeItem("current_profile_id");
       }
     } catch (err) {
       console.error("Failed to load profiles", err);
@@ -58,10 +67,10 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
   }, [isAuthenticated]);
 
   const setCurrentProfile = (profile: Profile) => {
-    setCurrentProfileState(profile);
     localStorage.setItem("current_profile_id", profile.id);
-    // Reload the page to reset state of other components depending on the profile
-    window.location.reload();
+    setCurrentProfileState(profile);
+    // Invalidate and refresh queries so the selected member's records appear without reloading the page
+    queryClient.invalidateQueries();
   };
 
   return (

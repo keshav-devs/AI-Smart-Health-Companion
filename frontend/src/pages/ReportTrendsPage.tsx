@@ -16,9 +16,12 @@ import { EmptyState } from "@/components/ui/EmptyState";
 import { fetchReportTrends } from "@/api/reports";
 import { STANDARD_MEDICAL_DISCLAIMER } from "@/schemas/report";
 import type { TestTrendSummary } from "@/schemas/trends";
+import { useProfile } from "@/hooks/useProfile";
 
 export function ReportTrendsPage() {
   const [selectedTest, setSelectedTest] = useState<string>("ALL");
+  const { currentProfile } = useProfile();
+  const profileId = currentProfile?.id;
 
   const {
     data: trendsData,
@@ -26,8 +29,9 @@ export function ReportTrendsPage() {
     isError,
     refetch,
   } = useQuery({
-    queryKey: ["report-trends"],
+    queryKey: ["report-trends", profileId],
     queryFn: fetchReportTrends,
+    enabled: !!profileId,
   });
 
   const tests = trendsData?.tests || [];

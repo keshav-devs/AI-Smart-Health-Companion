@@ -159,15 +159,13 @@ def clean_json_response(raw_text: str) -> str:
 
 def sanitize_extracted_data(data: dict[str, Any]) -> ReportExtractionResult:
     """Validate and sanitize raw dictionary into strict ReportExtractionResult."""
-    # Clinical safety guardrail: check both results and tests keys
-    for item in data.get("results", []) + data.get("tests", []):
-        if isinstance(item, dict):
-            raw_range = item.get("reference_range")
-            if not raw_range or str(raw_range).strip() == "" or str(raw_range).strip().lower() == "unspecified":
-                item["status"] = "unspecified"
-                item["needs_review"] = True
+    # Accept the legacy "results" key, but only process a list of objects.
+    tests_raw = data.get("tests")
+    if not isinstance(tests_raw, list) or not tests_raw:
+        tests_raw = data.get("results")
+    if not isinstance(tests_raw, list):
+        tests_raw = []
 
-    tests_raw = data.get("tests") or data.get("results") or []
     sanitized_tests: list[LabTestItem] = []
 
     for item in tests_raw:
@@ -178,26 +176,29 @@ def sanitize_extracted_data(data: dict[str, Any]) -> ReportExtractionResult:
         if not test_name:
             continue
 
-        raw_val = str(item.get("value", "")).strip()
+        raw_value = item.get("value")
+        raw_val = str(raw_value).strip() if raw_value is not None else ""
         raw_unit = item.get("unit")
         unit = str(raw_unit).strip() if raw_unit else None
         raw_range = item.get("reference_range")
-        ref_range = str(raw_range).strip() if raw_range else None
+        ref_range = str(raw_range).strip() if raw_range is not None else None
+        if ref_range is not None and (not ref_range or ref_range.lower() == "unspecified"):
+            ref_range = None
 
-        suggested_status = str(item.get("status", "unspecified")).lower()
         needs_review = bool(item.get("needs_review", False))
         review_reason = item.get("review_reason")
 
         # Double check range interpretation for precision
         calc_status, calc_review, calc_reason = interpret_range_comparison(raw_val, ref_range)
 
-        # Respect high/low/normal if calculated reliably; otherwise mark unspecified
-        final_status = calc_status if calc_status in ("normal", "high", "low") else suggested_status
-        if final_status not in ("normal", "high", "low", "unspecified"):
-            final_status = "unspecified"
-
-        final_needs_review = needs_review or calc_review or (final_status == "unspecified")
-        final_reason = review_reason or calc_reason if final_needs_review else None
+        # Status is derived only from a clear value and the printed range, never from Gemini's guess.
+        final_status = "unspecified" if needs_review else calc_status
+        final_needs_review = needs_review or calc_review or final_status == "unspecified"
+        final_reason = (
+            calc_reason
+            or (str(review_reason).strip() if review_reason else None)
+            or ("AI flagged this result for manual review" if needs_review else None)
+        ) if final_needs_review else None
 
         sanitized_tests.append(
             LabTestItem(
@@ -250,14 +251,21 @@ async def extract_report_data(
             "Follow all rules strictly. Return only valid JSON."
         )
 
-        response = await client.aio.models.generate_content(
-            model=settings.GEMINI_MODEL,
-            contents=[file_part, prompt],
-            config=types.GenerateContentConfig(
-                system_instruction=EXTRACTION_SYSTEM_INSTRUCTION,
-                response_mime_type="application/json",
-            ),
-        )
+        async_client = client.aio
+        try:
+            response = await async_client.models.generate_content(
+                model=settings.GEMINI_MODEL,
+                contents=[file_part, prompt],
+                config=types.GenerateContentConfig(
+                    system_instruction=EXTRACTION_SYSTEM_INSTRUCTION,
+                    response_mime_type="application/json",
+                ),
+            )
+        finally:
+            try:
+                await async_client.aclose()
+            finally:
+                client.close()
 
         response_text = response.text or ""
         if not response_text.strip():

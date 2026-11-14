@@ -49,7 +49,7 @@ async def create_medicine(
     """Create a new medicine profile with optional schedule."""
     from app.services.profiles import get_user_profile
     profile = await get_user_profile(db, profile_id, current_user.id)
-    if not profile:
+    if not profile or not profile.is_active:
         raise HTTPException(status_code=403, detail="Profile access denied.")
     
     med = await create_user_medicine(db, current_user.id, profile_id, data)

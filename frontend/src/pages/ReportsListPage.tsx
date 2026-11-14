@@ -13,10 +13,13 @@ import { ErrorMessage } from "@/components/ui/ErrorMessage";
 import { EmptyState } from "@/components/ui/EmptyState";
 import { ReportCard } from "@/components/reports/ReportCard";
 import { fetchReports } from "@/api/reports";
+import { useProfile } from "@/hooks/useProfile";
 import type { ApiError } from "@/api/client";
 
 export function ReportsListPage() {
   const [searchTerm, setSearchTerm] = useState("");
+  const { currentProfile } = useProfile();
+  const profileId = currentProfile?.id;
 
   const {
     data,
@@ -25,8 +28,9 @@ export function ReportsListPage() {
     error,
     refetch,
   } = useQuery({
-    queryKey: ["reports"],
+    queryKey: ["reports", profileId],
     queryFn: fetchReports,
+    enabled: !!profileId,
   });
 
   const reports = data?.reports ?? [];

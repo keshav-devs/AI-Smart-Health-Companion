@@ -23,6 +23,9 @@ import { JournalPage } from "@/pages/JournalPage";
 import { DoctorQuestionsPage } from "@/pages/DoctorQuestionsPage";
 import { ContactsPage } from "@/pages/ContactsPage";
 import { SettingsPage } from "@/pages/SettingsPage";
+import { HealthChatPage } from "@/pages/HealthChatPage";
+import { HealthHistoryPage } from "@/pages/HealthHistoryPage";
+import { EmergencyPage } from "@/pages/EmergencyPage";
 import { type ReactNode } from "react";
 
 const queryClient = new QueryClient({
@@ -69,6 +72,9 @@ function AppRoutes() {
       <Route path="/journal" element={<Protected><JournalPage /></Protected>} />
       <Route path="/doctor-questions" element={<Protected><DoctorQuestionsPage /></Protected>} />
       <Route path="/contacts" element={<Protected><ContactsPage /></Protected>} />
+      <Route path="/health-chat" element={<Protected><HealthChatPage /></Protected>} />
+      <Route path="/health-history" element={<Protected><HealthHistoryPage /></Protected>} />
+      <Route path="/emergency" element={<Protected><EmergencyPage /></Protected>} />
       <Route path="/settings" element={<Protected><SettingsPage /></Protected>} />
 
       {/* Fallback */}

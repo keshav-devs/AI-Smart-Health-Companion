@@ -56,7 +56,7 @@ async def upload_report(
     """Upload a new blood report for the signed-in patient."""
     from app.services.profiles import get_user_profile
     profile = await get_user_profile(db, profile_id, current_user.id)
-    if not profile:
+    if not profile or not profile.is_active:
         raise HTTPException(status_code=403, detail="Profile access denied.")
 
     report = await save_uploaded_report(
@@ -96,11 +96,12 @@ async def get_report_trends(
 @router.get("/{report_id}", response_model=ReportResponse)
 async def get_report_details(
     report_id: uuid.UUID,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReportResponse:
     """Retrieve details of a report owned by the current authenticated user."""
-    report = await get_user_report(db, report_id, current_user.id)
+    report = await get_user_report(db, report_id, current_user.id, profile_id)
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -114,6 +115,7 @@ async def get_report_details(
 async def get_report_file(
     report_id: uuid.UUID,
     disposition: str = "attachment",
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> FileResponse:
@@ -122,7 +124,7 @@ async def get_report_file(
     - disposition=inline: Preview directly in browser/PDF viewer/image viewer
     - disposition=attachment: Download file with original filename
     """
-    report = await get_user_report(db, report_id, current_user.id)
+    report = await get_user_report(db, report_id, current_user.id, profile_id)
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -143,6 +145,7 @@ async def get_report_file(
 @router.post("/{report_id}/analyze", response_model=ReportResponse)
 async def analyze_report(
     report_id: uuid.UUID,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReportResponse:
@@ -154,6 +157,7 @@ async def analyze_report(
         db=db,
         report_id=report_id,
         user_id=current_user.id,
+        profile_id=profile_id,
     )
     return ReportResponse.model_validate(report)
 
@@ -162,6 +166,7 @@ async def analyze_report(
 async def confirm_extraction(
     report_id: uuid.UUID,
     data: ConfirmExtractionRequest,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReportResponse:
@@ -170,6 +175,7 @@ async def confirm_extraction(
         db=db,
         report_id=report_id,
         user_id=current_user.id,
+        profile_id=profile_id,
         data=data,
     )
     return ReportResponse.model_validate(report)
@@ -178,6 +184,7 @@ async def confirm_extraction(
 @router.post("/{report_id}/explain", response_model=ReportExplanationResult)
 async def explain_report(
     report_id: uuid.UUID,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReportExplanationResult:
@@ -186,17 +193,19 @@ async def explain_report(
         db=db,
         report_id=report_id,
         user_id=current_user.id,
+        profile_id=profile_id,
     )
 
 
 @router.get("/{report_id}/explanation", response_model=ReportExplanationResult)
 async def get_report_explanation(
     report_id: uuid.UUID,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReportExplanationResult:
     """Retrieve existing stored explanation for a confirmed report."""
-    report = await get_user_report(db, report_id, current_user.id)
+    report = await get_user_report(db, report_id, current_user.id, profile_id)
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -214,6 +223,7 @@ async def get_report_explanation(
 async def ask_report_question(
     report_id: uuid.UUID,
     request: ReportQuestionRequest,
+    profile_id: uuid.UUID = Depends(get_active_profile_id),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> ReportQuestionResponse:
@@ -222,6 +232,7 @@ async def ask_report_question(
         db=db,
         report_id=report_id,
         user_id=current_user.id,
+        profile_id=profile_id,
         request=request,
     )
 

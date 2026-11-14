@@ -126,11 +126,37 @@ async def get_user_document(
     db: AsyncSession,
     document_id: uuid.UUID,
     user_id: uuid.UUID,
+    profile_id: uuid.UUID,
 ) -> Document | None:
     result = await db.execute(
-        select(Document).where(Document.id == document_id, Document.user_id == user_id)
+        select(Document).where(
+            Document.id == document_id,
+            Document.user_id == user_id,
+            Document.profile_id == profile_id,
+        )
     )
     return result.scalar_one_or_none()
+
+
+async def delete_user_document(
+    db: AsyncSession,
+    document_id: uuid.UUID,
+    user_id: uuid.UUID,
+    profile_id: uuid.UUID,
+) -> None:
+    """Delete one document row and its stored file within the active profile."""
+    document = await get_user_document(db, document_id, user_id, profile_id)
+    if document is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document not found.")
+
+    storage_dir = get_storage_dir()
+    file_path = (storage_dir / document.file_path).resolve()
+    if not file_path.is_relative_to(storage_dir):
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Document file not found on storage.")
+
+    await db.delete(document)
+    await db.commit()
+    file_path.unlink(missing_ok=True)
 
 
 def get_document_file_path(document: Document) -> Path:

@@ -31,6 +31,7 @@ async def generate_user_report_explanation(
     db: AsyncSession,
     report_id: uuid.UUID,
     user_id: uuid.UUID,
+    profile_id: uuid.UUID,
 ) -> ReportExplanationResult:
     """Generate an educational plain-English explanation for a confirmed report.
 
@@ -41,7 +42,7 @@ async def generate_user_report_explanation(
     - If AI provider fails, raises 502/503. Never substitutes fake data.
     - Result is saved to report.explanation_data.
     """
-    report = await get_user_report(db, report_id, user_id)
+    report = await get_user_report(db, report_id, user_id, profile_id)
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
@@ -110,6 +111,7 @@ async def answer_user_report_question(
     db: AsyncSession,
     report_id: uuid.UUID,
     user_id: uuid.UUID,
+    profile_id: uuid.UUID,
     request: ReportQuestionRequest,
 ) -> ReportQuestionResponse:
     """Answer a focused user question scoped strictly to the confirmed report.
@@ -120,7 +122,7 @@ async def answer_user_report_question(
     - Scoped strictly to this report; unrelated user records or db data are NEVER included.
     - If AI provider is unconfigured, raises 503.
     """
-    report = await get_user_report(db, report_id, user_id)
+    report = await get_user_report(db, report_id, user_id, profile_id)
     if report is None:
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,

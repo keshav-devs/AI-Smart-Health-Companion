@@ -25,7 +25,7 @@ apiClient.interceptors.request.use((config) => {
   
   // Inject active profile_id into supported routes if not already provided
   const url = config.url || "";
-  if (url.startsWith("/reports") || url.startsWith("/medicines") || url.startsWith("/journal")) {
+  if (["/reports", "/medicines", "/journal", "/documents", "/contacts", "/doctor-questions", "/timeline"].some((route) => url.startsWith(route))) {
     const profileId = localStorage.getItem("current_profile_id");
     if (profileId && !config.params?.profile_id) {
       config.params = { ...config.params, profile_id: profileId };

@@ -23,6 +23,8 @@ export function DoctorQuestionsPage() {
   const [answerText, setAnswerText] = useState("");
   const [isAsked, setIsAsked] = useState(false);
   const [formError, setFormError] = useState("");
+  const [suggestions, setSuggestions] = useState<string[]>([]);
+  const [suggestionError, setSuggestionError] = useState("");
 
   const { data: questions, isLoading } = useQuery({
     queryKey: ["doctor_questions", profileId],
@@ -58,6 +60,30 @@ export function DoctorQuestionsPage() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["doctor_questions", profileId] });
     },
+  });
+
+  const suggestionsMutation = useMutation({
+    mutationFn: () => {
+      if (!profileId) throw new Error("Select a profile first.");
+      return doctorQuestionsApi.generateSuggestions(profileId);
+    },
+    onSuccess: (result) => {
+      setSuggestions(result.suggestions);
+      setSuggestionError("");
+    },
+    onError: (err: any) => setSuggestionError(err?.detail || "Could not generate suggestions. Please try again."),
+  });
+
+  const addSuggestionMutation = useMutation({
+    mutationFn: (question: string) => {
+      if (!profileId) throw new Error("Select a profile first.");
+      return doctorQuestionsApi.createQuestion({ profile_id: profileId, question });
+    },
+    onSuccess: (_saved, question) => {
+      queryClient.invalidateQueries({ queryKey: ["doctor_questions", profileId] });
+      setSuggestions((current) => current.filter((item) => item !== question));
+    },
+    onError: (err: any) => setSuggestionError(err?.detail || "Could not save this question."),
   });
 
   const openAddModal = () => {
@@ -136,13 +162,41 @@ export function DoctorQuestionsPage() {
             Keep track of questions you want to ask at your next appointment.
           </p>
         </div>
+        <div className="flex flex-wrap gap-2">
+        <Button variant="secondary" onClick={() => suggestionsMutation.mutate()} isLoading={suggestionsMutation.isPending} disabled={!profileId} className="flex items-center gap-2">
+          Suggest with AI
+        </Button>
         <Button onClick={openAddModal} className="flex items-center gap-2">
           <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
           </svg>
           Add Question
         </Button>
+        </div>
       </div>
+
+      {suggestionError && <div role="alert" className="mb-4 rounded-xl border border-red-200 bg-red-50 p-3 text-sm text-red-700">{suggestionError}</div>}
+      {suggestions.length > 0 && (
+        <section className="mb-6 rounded-2xl border border-primary-100 bg-primary-50/40 p-4 sm:p-5" aria-label="AI generated doctor question suggestions">
+          <h2 className="font-semibold text-gray-900">Suggestions to review</h2>
+          <p className="mt-1 text-xs text-gray-600">When you request suggestions, this profile&apos;s confirmed lab values and active medicine names are sent to Gemini. Review and edit every suggestion before saving it.</p>
+          <ul className="mt-3 space-y-3">
+            {suggestions.map((suggestion, index) => (
+              <li key={`suggestion-${index}`} className="flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-3 sm:flex-row sm:items-center sm:justify-between">
+                <textarea
+                  value={suggestion}
+                  maxLength={500}
+                  rows={2}
+                  aria-label={`Edit suggested question ${index + 1}`}
+                  onChange={(event) => setSuggestions((current) => current.map((item, itemIndex) => itemIndex === index ? event.target.value : item))}
+                  className="min-w-0 flex-1 resize-y rounded-lg border border-gray-300 p-2 text-sm text-gray-800 focus:border-primary-500 focus:outline-none focus:ring-2 focus:ring-primary-100"
+                />
+                <Button size="sm" variant="secondary" onClick={() => addSuggestionMutation.mutate(suggestion.trim())} disabled={addSuggestionMutation.isPending || !suggestion.trim()}>Save question</Button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       {isLoading ? (
         <LoadingSpinner />

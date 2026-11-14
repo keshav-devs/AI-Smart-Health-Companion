@@ -13,24 +13,37 @@ import { useAuth } from "@/hooks/useAuth";
 import { fetchReports } from "@/api/reports";
 import { fetchMedicines, fetchTodayDoses } from "@/api/medicines";
 import { ReportCard } from "@/components/reports/ReportCard";
+import { useProfile } from "@/hooks/useProfile";
+import { fetchHealthTimeline } from "@/api/timeline";
 
 export function DashboardPage() {
+  const { currentProfile } = useProfile();
+  const profileId = currentProfile?.id;
   const { user } = useAuth();
   const firstName = user?.full_name?.split(" ")[0] ?? "there";
 
   const { data: reportsData } = useQuery({
-    queryKey: ["reports"],
+    queryKey: ["reports", profileId],
     queryFn: fetchReports,
+    enabled: !!profileId,
   });
 
   const { data: medsData } = useQuery({
-    queryKey: ["medicines"],
+    queryKey: ["medicines", profileId],
     queryFn: () => fetchMedicines(false),
+    enabled: !!profileId,
   });
 
   const { data: dosesData } = useQuery({
-    queryKey: ["today-doses"],
+    queryKey: ["today-doses", profileId],
     queryFn: () => fetchTodayDoses(),
+    enabled: !!profileId,
+  });
+
+  const { data: timeline = [], isLoading: timelineLoading } = useQuery({
+    queryKey: ["health-timeline", profileId],
+    queryFn: () => fetchHealthTimeline(8),
+    enabled: !!profileId,
   });
 
   const reports = reportsData?.reports ?? [];
@@ -164,23 +177,32 @@ export function DashboardPage() {
           </CardBody>
         </Card>
 
-        {/* ── Activity / Timeline placeholder ──────────────────── */}
+        {/* ── Recent profile activity ─────────────────────────── */}
         <Card>
-          <CardHeader
-            title="Recent Activity"
-            description="Your health-related actions and updates."
-          />
+          <div className="flex items-center justify-between border-b border-gray-100 px-6 py-5">
+            <CardHeader title="Recent Health History" description="Recent activity for the selected profile." />
+            <Link to="/health-history" className="text-sm font-medium text-primary-700 hover:text-primary-800">View timeline</Link>
+          </div>
           <CardBody>
-            <EmptyState
-              icon={
-                <svg className="w-8 h-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                    d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-              }
-              title="No activity yet"
-              description="As you use Health Companion, your activity timeline will build up here."
-            />
+            {timelineLoading ? <p className="text-sm text-gray-500">Loading recent activity…</p> : timeline.length ? (
+              <ol className="divide-y divide-gray-100">
+                {timeline.slice(0, 6).map((event) => (
+                  <li key={event.id} className="flex flex-col gap-1 py-3 first:pt-0 sm:flex-row sm:items-center sm:justify-between">
+                    <div>
+                      <p className="text-sm font-medium text-gray-800">{event.title}</p>
+                      <p className="text-xs text-gray-500">{event.summary}</p>
+                    </div>
+                    <time className="text-xs text-gray-500" dateTime={event.occurred_at}>{new Date(event.occurred_at).toLocaleDateString()}</time>
+                  </li>
+                ))}
+              </ol>
+            ) : (
+              <EmptyState
+                icon={<svg className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>}
+                title="No activity yet"
+                description="Saved health records and activity for this profile will appear here."
+              />
+            )}
           </CardBody>
         </Card>
       </div>
