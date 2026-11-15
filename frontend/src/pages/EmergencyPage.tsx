@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { useQuery, useMutation } from "@tanstack/react-query";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
+import L from "leaflet";
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
 import { DashboardLayout } from "@/components/layout/DashboardLayout";
 import { Button } from "@/components/ui/Button";
 import { LoadingSpinner } from "@/components/ui/LoadingSpinner";
@@ -13,6 +18,65 @@ import {
   type FacilityType,
   type NearbyFacilitiesResponse,
 } from "@/api/hospitals";
+
+// Fix Leaflet's default marker asset paths for the Vite build
+delete (L.Icon.Default.prototype as any)._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+});
+
+const defaultFacilityIcon = L.icon({
+  iconUrl: markerIcon,
+  iconRetinaUrl: markerIcon2x,
+  shadowUrl: markerShadow,
+  iconSize: [25, 41],
+  iconAnchor: [12, 41],
+  popupAnchor: [1, -34],
+  shadowSize: [41, 41],
+});
+
+function isValidCoordinate(lat?: number | null, lon?: number | null): lat is number {
+  return (
+    typeof lat === "number" &&
+    typeof lon === "number" &&
+    Number.isFinite(lat) &&
+    Number.isFinite(lon) &&
+    lat >= -90 &&
+    lat <= 90 &&
+    lon >= -180 &&
+    lon <= 180
+  );
+}
+
+interface MapUpdaterProps {
+  facilities: Array<FacilityItem & { latitude: number; longitude: number }>;
+}
+
+function MapUpdater({ facilities }: MapUpdaterProps) {
+  const map = useMap();
+
+  useEffect(() => {
+    if (!facilities || facilities.length === 0) return;
+
+    if (facilities.length === 1) {
+      const single = facilities[0];
+      map.setView([single.latitude, single.longitude], 14, { animate: true });
+      return;
+    }
+
+    const bounds = L.latLngBounds(
+      facilities.map((f) => [f.latitude, f.longitude] as [number, number])
+    );
+
+    if (bounds.isValid()) {
+      map.fitBounds(bounds, { padding: [40, 40], maxZoom: 16 });
+    }
+  }, [facilities, map]);
+
+  return null;
+}
 
 export function EmergencyPage() {
   const { currentProfile } = useProfile();
@@ -154,6 +218,11 @@ export function EmergencyPage() {
   const profile = emergencyData?.profile;
   const contacts = emergencyData?.emergency_contacts || [];
   const medicines = emergencyData?.active_medicines || [];
+
+  const validFacilities = (nearbyResult?.facilities || []).filter(
+    (f): f is FacilityItem & { latitude: number; longitude: number } =>
+      isValidCoordinate(f.latitude, f.longitude)
+  );
 
   return (
     <DashboardLayout>
@@ -740,6 +809,59 @@ export function EmergencyPage() {
                             </div>
                           </div>
                         )}
+                      </div>
+                    )}
+
+                    {/* Interactive Facility Map (Rendered only when results have valid coordinates) */}
+                    {validFacilities.length > 0 && (
+                      <div className="space-y-2">
+                        <div className="flex items-center justify-between text-xs text-gray-500">
+                          <span className="font-semibold text-gray-700">Interactive Facilities Map</span>
+                          <span>{validFacilities.length} {validFacilities.length === 1 ? "facility" : "facilities"} mapped</span>
+                        </div>
+                        <div className="h-72 sm:h-96 w-full rounded-xl overflow-hidden border border-gray-200 shadow-sm relative z-0">
+                          <MapContainer
+                            center={[validFacilities[0].latitude, validFacilities[0].longitude]}
+                            zoom={13}
+                            scrollWheelZoom={false}
+                            className="h-full w-full"
+                          >
+                            <TileLayer
+                              url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+                              attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap</a> contributors'
+                            />
+                            <MapUpdater facilities={validFacilities} />
+                            {validFacilities.map((f) => (
+                              <Marker key={f.id} position={[f.latitude, f.longitude]} icon={defaultFacilityIcon}>
+                                <Popup>
+                                  <div className="space-y-1 p-0.5 text-xs min-w-[180px]">
+                                    <p className="font-bold text-gray-900 text-sm leading-snug">{f.name}</p>
+                                    <div className="flex flex-wrap items-center gap-1.5 text-gray-600">
+                                      <span className="capitalize font-semibold text-primary-700">
+                                        {f.facility_type.replace("_", " ")}
+                                      </span>
+                                      {f.distance_meters !== null && f.distance_meters !== undefined && Number.isFinite(f.distance_meters) && (
+                                        <span className="text-gray-500">
+                                          • {(f.distance_meters / 1000).toFixed(2)} km
+                                        </span>
+                                      )}
+                                    </div>
+                                    {f.address && (
+                                      <p className="text-gray-500 text-[11px] leading-tight line-clamp-2">{f.address}</p>
+                                    )}
+                                    {f.phone && (
+                                      <p className="pt-1">
+                                        <a href={`tel:${f.phone}`} className="text-emerald-700 font-semibold hover:underline">
+                                          📞 {f.phone}
+                                        </a>
+                                      </p>
+                                    )}
+                                  </div>
+                                </Popup>
+                              </Marker>
+                            ))}
+                          </MapContainer>
+                        </div>
                       </div>
                     )}
 
