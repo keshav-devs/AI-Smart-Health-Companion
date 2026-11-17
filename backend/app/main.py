@@ -28,9 +28,10 @@ from app.routers import (
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    """Ensure database schema is initialized on startup."""
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    """Ensure database schema is initialized on startup in non-production environments."""
+    if settings.ENVIRONMENT.lower() != "production":
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
     yield
 
 
