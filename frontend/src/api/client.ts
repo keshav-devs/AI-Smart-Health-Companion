@@ -12,7 +12,7 @@ const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000
 const apiClient = axios.create({
   baseURL: API_BASE_URL,
   headers: { "Content-Type": "application/json" },
-  timeout: 15_000,
+  timeout: 60000,
 });
 
 // ── Request interceptor — attach JWT ─────────────────────────────────
@@ -22,7 +22,7 @@ apiClient.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
-  
+
   // Inject active profile_id into supported routes if not already provided
   const url = config.url || "";
   if (["/reports", "/medicines", "/journal", "/documents", "/contacts", "/doctor-questions", "/timeline"].some((route) => url.startsWith(route))) {
