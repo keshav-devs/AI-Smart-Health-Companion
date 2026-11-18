@@ -30,7 +30,7 @@ services:
       - key: GEOAPIFY_API_KEY
         sync: false
       - key: BACKEND_CORS_ORIGINS
-        value: https://healthapp-frontend.onrender.com
+        value: https://healthapp-frontend-cftm.onrender.com
       - key: UPLOAD_DIR
         value: uploads
 
@@ -46,4 +46,4 @@ services:
         destination: /index.html
     envVars:
       - key: VITE_API_BASE_URL
-        value: https://healthapp-backend.onrender.com/api/v1
+        value: https://healthapp-backend-delo.onrender.com/api/v1
